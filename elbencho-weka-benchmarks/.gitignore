@@ -1,0 +1,10 @@
+# Ignore benchmark results
+results/
+
+# Ignore log files
+*.log
+
+# Ignore temporary files
+*.tmp
+*.swp
+*~
