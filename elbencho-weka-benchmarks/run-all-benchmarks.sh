@@ -49,6 +49,43 @@ print_banner() {
     echo ""
 }
 
+# Check SSH connectivity
+check_ssh_connectivity() {
+    log_info "Checking SSH connectivity to all clients..."
+
+    local ssh_failed=0
+    local failed_hosts=""
+
+    for host in $CLIENT_HOSTS; do
+        echo -n "  Checking $host... "
+
+        # Try passwordless SSH with timeout
+        if ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=no "$host" "exit" 2>/dev/null; then
+            echo -e "${GREEN}OK${NC}"
+        else
+            echo -e "${RED}FAILED${NC}"
+            ssh_failed=1
+            failed_hosts="$failed_hosts $host"
+        fi
+    done
+
+    if [ $ssh_failed -eq 1 ]; then
+        echo ""
+        log_error "Passwordless SSH is not configured for:$failed_hosts"
+        log_error ""
+        log_error "To fix this, run one of the following:"
+        log_error "  1. Use the setup script: bash scripts/setup-passwordless-ssh.sh"
+        log_error "  2. Manually set up SSH keys:"
+        for host in $failed_hosts; do
+            log_error "     ssh-copy-id $host"
+        done
+        echo ""
+        exit 1
+    fi
+
+    log_success "SSH connectivity check passed"
+}
+
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
@@ -69,6 +106,9 @@ check_prerequisites() {
             exit 1
         fi
     fi
+
+    # Check SSH connectivity to all clients
+    check_ssh_connectivity
 
     # Check if Weka mount exists
     if [ ! -d "$WEKA_MOUNT" ]; then

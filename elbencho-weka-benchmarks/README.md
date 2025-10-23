@@ -39,12 +39,17 @@ This benchmark suite uses [elbencho](https://github.com/breuner/elbencho) in dis
 
 - **SSH**: Passwordless SSH access from master to all clients
   ```bash
-  # Set up SSH keys if not already done
+  # Option 1: Use the automated setup script (recommended)
+  bash scripts/setup-passwordless-ssh.sh
+
+  # Option 2: Manual setup
   ssh-keygen
   ssh-copy-id user@client1
   ssh-copy-id user@client2
   # etc.
   ```
+
+  **Note**: The benchmark scripts automatically check for passwordless SSH connectivity before running tests. If SSH is not properly configured, you'll receive a clear error message with instructions to fix it.
 
 ### Weka Requirements
 
@@ -266,6 +271,20 @@ elbencho \
 
 ## Utility Scripts
 
+### SSH Setup
+
+```bash
+# Automated passwordless SSH setup (interactive)
+bash scripts/setup-passwordless-ssh.sh
+
+# This script will:
+# - Check for existing SSH keys (or generate new ones)
+# - Copy keys to all client nodes
+# - Verify connectivity
+# - Check elbencho installation on all clients
+# - Verify Weka mount on all clients
+```
+
 ### Service Management
 
 ```bash
@@ -290,12 +309,25 @@ bash scripts/generate-report.sh results/run_20250123_143045
 
 ### SSH Connection Issues
 
+If you get SSH connection errors when running benchmarks:
+
 ```bash
+# Option 1: Use the automated setup script (recommended)
+bash scripts/setup-passwordless-ssh.sh
+
+# Option 2: Manual troubleshooting
 # Test SSH connectivity
 for host in client1 client2 client3; do
     ssh $host "echo OK from $host"
 done
+
+# If passwords are still being requested, copy your SSH key:
+ssh-copy-id client1
+ssh-copy-id client2
+# etc.
 ```
+
+The benchmark suite will automatically detect SSH configuration issues and provide helpful error messages with instructions.
 
 ### elbencho Not Found
 

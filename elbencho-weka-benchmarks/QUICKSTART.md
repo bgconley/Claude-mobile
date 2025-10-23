@@ -17,6 +17,12 @@ ssh client3 hostname
 ls -la /mnt/weka
 ```
 
+**If passwordless SSH is not set up:**
+```bash
+# Use the automated setup script (easiest)
+bash scripts/setup-passwordless-ssh.sh
+```
+
 ### 2. Configure
 
 ```bash
@@ -58,6 +64,9 @@ less results/run_*/sequential-write-throughput.txt
 ## Common Commands
 
 ```bash
+# Setup passwordless SSH (first time only)
+bash scripts/setup-passwordless-ssh.sh
+
 # Run full benchmark suite
 ./run-all-benchmarks.sh
 
@@ -97,6 +106,10 @@ bash scripts/generate-report.sh results/run_20250123_143045
 
 **SSH fails**: Set up passwordless SSH
 ```bash
+# Automated setup (recommended)
+bash scripts/setup-passwordless-ssh.sh
+
+# Or manual setup
 ssh-keygen
 ssh-copy-id client1
 ```

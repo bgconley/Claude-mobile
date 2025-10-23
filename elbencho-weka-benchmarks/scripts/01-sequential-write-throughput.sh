@@ -6,11 +6,15 @@ set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 source "$SCRIPT_DIR/configs/cluster.conf"
+source "$SCRIPT_DIR/scripts/common-functions.sh"
 
 RESULTS_DIR="${1:-results/latest}"
 TEST_NAME="sequential-write-throughput"
 TEST_DIR="${BENCHMARK_DIR}/${TEST_NAME}"
 OUTPUT_FILE="${RESULTS_DIR}/${TEST_NAME}.txt"
+
+# Ensure services are cleaned up on exit
+trap cleanup_services EXIT INT TERM
 
 echo "================================================================"
 echo "  Sequential Write Throughput Test"
@@ -24,22 +28,16 @@ echo "================================================================"
 echo ""
 
 # Cleanup previous test data
-echo "[1/3] Cleaning up previous test data..."
+log_info "[1/3] Cleaning up previous test data..."
 rm -rf "$TEST_DIR"
 mkdir -p "$TEST_DIR"
 
-# Start services on all clients
-echo "[2/3] Starting elbencho services on all clients..."
-for host in $CLIENT_HOSTS; do
-    echo "  Starting service on $host..."
-    ssh "$host" "elbencho --service --foreground" &
-    sleep 1
-done
-
-sleep 3
+# Start services on all clients with error handling
+log_info "[2/3] Starting elbencho services on all clients..."
+start_all_services
 
 # Run the benchmark from master
-echo "[3/3] Running sequential write benchmark..."
+log_info "[3/3] Running sequential write benchmark..."
 echo ""
 
 DIRECT_IO_FLAG=""
@@ -59,15 +57,13 @@ elbencho \
     "$TEST_DIR" \
     2>&1 | tee "$OUTPUT_FILE"
 
-# Stop services
-echo ""
-echo "Stopping elbencho services..."
-for host in $CLIENT_HOSTS; do
-    ssh "$host" "pkill -f 'elbencho --service'" || true
-done
+# Check if elbencho succeeded
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    log_error "elbencho command failed"
+    exit 1
+fi
 
+# Services will be stopped by trap on exit
 echo ""
-echo "================================================================"
-echo "  Test Complete!"
-echo "  Results saved to: $OUTPUT_FILE"
-echo "================================================================"
+log_success "Test Complete!"
+log_info "Results saved to: $OUTPUT_FILE"
