@@ -4,6 +4,26 @@
 
 set -e
 
+FAILED_TESTS=()
+
+record_failure() {
+    local description=$1
+    FAILED_TESTS+=("$description")
+}
+
+run_benchmark_script() {
+    local description=$1
+    local script_path=$2
+
+    if ! bash "$script_path" "$RESULTS_DIR"; then
+        log_error "$description failed"
+        record_failure "$description"
+        return 1
+    fi
+
+    return 0
+}
+
 # Get the script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
@@ -140,29 +160,43 @@ main() {
 
     # Run throughput benchmarks
     log_info "=== Phase 1: High Throughput Benchmarks ==="
-    bash scripts/01-sequential-write-throughput.sh "$RESULTS_DIR" || log_error "Sequential write test failed"
-    bash scripts/02-sequential-read-throughput.sh "$RESULTS_DIR" || log_error "Sequential read test failed"
-    bash scripts/03-parallel-write-throughput.sh "$RESULTS_DIR" || log_error "Parallel write test failed"
-    bash scripts/04-parallel-read-throughput.sh "$RESULTS_DIR" || log_error "Parallel read test failed"
+    run_benchmark_script "Sequential write test" "scripts/01-sequential-write-throughput.sh"
+    run_benchmark_script "Sequential read test" "scripts/02-sequential-read-throughput.sh"
+    run_benchmark_script "Parallel write test" "scripts/03-parallel-write-throughput.sh"
+    run_benchmark_script "Parallel read test" "scripts/04-parallel-read-throughput.sh"
 
     echo ""
     log_info "=== Phase 2: Low Latency Benchmarks ==="
-    bash scripts/05-random-write-latency.sh "$RESULTS_DIR" || log_error "Random write latency test failed"
-    bash scripts/06-random-read-latency.sh "$RESULTS_DIR" || log_error "Random read latency test failed"
-    bash scripts/07-mixed-workload.sh "$RESULTS_DIR" || log_error "Mixed workload test failed"
+    run_benchmark_script "Random write latency test" "scripts/05-random-write-latency.sh"
+    run_benchmark_script "Random read latency test" "scripts/06-random-read-latency.sh"
+    run_benchmark_script "Mixed workload test" "scripts/07-mixed-workload.sh"
 
     echo ""
     log_info "=== Phase 3: Metadata Performance ==="
-    bash scripts/08-metadata-operations.sh "$RESULTS_DIR" || log_error "Metadata test failed"
+    run_benchmark_script "Metadata operations test" "scripts/08-metadata-operations.sh"
 
     echo ""
-    log_info "=== Generating Summary Report ==="
+    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
+        log_warning "Some benchmarks failed. Generating summary with available results..."
+    else
+        log_info "=== Generating Summary Report ==="
+    fi
+
     bash scripts/generate-report.sh "$RESULTS_DIR"
 
     echo ""
-    log_success "Benchmark suite completed!"
-    log_info "Results location: $RESULTS_DIR"
-    log_info "Summary report: $RESULTS_DIR/summary.txt"
+    if [ ${#FAILED_TESTS[@]} -gt 0 ]; then
+        log_error "Benchmark suite completed with errors"
+        log_error "Failed benchmarks:"
+        for test in "${FAILED_TESTS[@]}"; do
+            log_error "  - $test"
+        done
+        exit 1
+    else
+        log_success "Benchmark suite completed!"
+        log_info "Results location: $RESULTS_DIR"
+        log_info "Summary report: $RESULTS_DIR/summary.txt"
+    fi
 }
 
 # Handle interrupts
